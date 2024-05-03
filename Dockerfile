@@ -1,7 +1,8 @@
 FROM ubuntu:latest
 
 
-COPY . ./
+COPY . /
 
+WORKDIR /server
 EXPOSE 8080
-CMD ["./server/server"]
+CMD ["/server/server"]
