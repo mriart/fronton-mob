@@ -314,11 +314,20 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opAr.GeoM.Translate(0, fieldHeightFF+3)
 	screen.DrawImage(arrowLeft, opAr)
 
-	// Draw initial screen, pre-start. Not used in mobile
+	// Draw initial screen, pre-start
 	if g.State == 0 {
 		vector.DrawFilledCircle(screen, fieldWidthF/2, fieldHeightF/2, 5, color.RGBA{R: 0, G: 255, B: 0, A: 0}, true)
 		vector.DrawFilledRect(screen, float32(g.Racket.X), fieldHeightF-racketHeightF-5, racketWidthF, racketHeightF, color.White, false)
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("Tap the screen to play.\nMove racket with the arrows.\nFirst to score %d wins. Enjoy!", winnerScore))
+
+		opSt := &text.DrawOptions{}
+		opSt.GeoM.Translate(fieldWidthFF/2-20*5/2, fieldHeightFF+20)
+		opSt.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "00:00", &text.GoTextFace{
+			Source: fontFaceSource,
+			Size:   20,
+		}, opSt)
+
 		return
 	}
 
@@ -360,12 +369,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Print score
 	opSc := &text.DrawOptions{}
-	opSc.GeoM.Translate(fieldWidthFF/2-24*5/2, fieldHeightFF+20)
-	opSc.GeoM.Translate(0, 0)
+	opSc.GeoM.Translate(fieldWidthFF/2-20*5/2, fieldHeightFF+20)
 	opSc.ColorScale.ScaleWithColor(color.White)
 	text.Draw(screen, fmt.Sprintf("%02d:%02d", g.Score.Player, g.Score.CPU), &text.GoTextFace{
 		Source: fontFaceSource,
-		Size:   24,
+		Size:   20,
 	}, opSc)
 }
 
