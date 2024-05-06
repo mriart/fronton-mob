@@ -22,6 +22,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -52,6 +53,8 @@ var (
 	touchIDs        = []ebiten.TouchID{}
 	touchRight bool = false
 	touchLeft  bool = false
+
+	fontFaceSource *text.GoTextFaceSource
 )
 
 const (
@@ -124,6 +127,10 @@ func (g *Game) Initialize() {
 	// Initialize the images (arrows)
 	arrowRight, _, _ = ebitenutil.NewImageFromFileSystem(embeddedFS, "res/icons8-arrow-64R.png")
 	arrowLeft, _, _ = ebitenutil.NewImageFromFileSystem(embeddedFS, "res/icons8-arrow-64L.png")
+
+	// Initialize fonts to show scoring
+	f, _ := embeddedFS.Open("res/pressstart2p.ttf")
+	fontFaceSource, _ = text.NewGoTextFaceSource(f)
 
 	// Initalize audio (only if it starts, not when re-starting)
 	if g.audioContext == nil {
@@ -299,13 +306,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	vector.DrawFilledRect(screen, 0, fieldHeightF, fieldWidthF, 3, color.White, false)
 
 	// Draw the arrows to move the racket
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(fieldWidthFF-64, fieldHeightFF+3)
-	screen.DrawImage(arrowRight, op)
+	opAr := &ebiten.DrawImageOptions{}
+	opAr.GeoM.Translate(fieldWidthFF-64, fieldHeightFF+3)
+	screen.DrawImage(arrowRight, opAr)
 
-	op2 := &ebiten.DrawImageOptions{}
-	op2.GeoM.Translate(0, fieldHeightFF+3)
-	screen.DrawImage(arrowLeft, op2)
+	opAr = &ebiten.DrawImageOptions{}
+	opAr.GeoM.Translate(0, fieldHeightFF+3)
+	screen.DrawImage(arrowLeft, opAr)
 
 	// Draw initial screen, pre-start. Not used in mobile
 	if g.State == 0 {
@@ -317,12 +324,28 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Draw game over
 	if g.State == 2 {
-		if g.Score.Player == winnerScore {
-			ebitenutil.DebugPrint(screen, fmt.Sprintf("Game over. Score: %d, %d. You won!", g.Score.Player, g.Score.CPU))
+		if g.Score.Player >= winnerScore {
+			ebitenutil.DebugPrint(screen, fmt.Sprintf("You won.\nTap the screen to play again."))
 		} else {
-			ebitenutil.DebugPrint(screen, fmt.Sprintf("Game over. Score: %d, %d. Machine won!", g.Score.Player, g.Score.CPU))
+			ebitenutil.DebugPrint(screen, fmt.Sprintf("Machine won.\nTap the screen to play again."))
 		}
-		ebitenutil.DebugPrint(screen, "\nTap the screen to play again.")
+
+		opGO := &text.DrawOptions{}
+		opGO.GeoM.Translate(fieldWidthFF/2-20*9/2, fieldHeightFF/3)
+		opGO.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, "GAME OVER", &text.GoTextFace{
+			Source: fontFaceSource,
+			Size:   20,
+		}, opGO)
+
+		opGO = &text.DrawOptions{}
+		opGO.GeoM.Translate(fieldWidthFF/2-20*5/2, fieldHeightFF+20)
+		opGO.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, fmt.Sprintf("%02d:%02d", g.Score.Player, g.Score.CPU), &text.GoTextFace{
+			Source: fontFaceSource,
+			Size:   20,
+		}, opGO)
+
 		return
 	}
 
@@ -336,7 +359,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	vector.DrawFilledRect(screen, float32(g.Racket.X), fieldHeightF-racketHeightF-5, racketWidthF, racketHeightF, color.White, false)
 
 	// Print score
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("Score: %d/%d", g.Score.Player, g.Score.CPU))
+	opSc := &text.DrawOptions{}
+	opSc.GeoM.Translate(fieldWidthFF/2-24*5/2, fieldHeightFF+20)
+	opSc.GeoM.Translate(0, 0)
+	opSc.ColorScale.ScaleWithColor(color.White)
+	text.Draw(screen, fmt.Sprintf("%02d:%02d", g.Score.Player, g.Score.CPU), &text.GoTextFace{
+		Source: fontFaceSource,
+		Size:   24,
+	}, opSc)
 }
 
 // Return a random integer between n and m, both included
