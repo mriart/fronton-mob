@@ -36,7 +36,7 @@ var (
 	racketWidth  int
 	racketHeight int = 5 // +5 pixels of distance between racket and floor, fixed
 	racketSpeed  int = 8
-	winnerScore  int = 3
+	winnerScore  int = 21
 
 	// Used floats in some functions. Precalculated to alleviate cpu
 	fieldWidthF   float32
