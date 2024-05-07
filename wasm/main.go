@@ -16,6 +16,7 @@ import (
 	_ "image/png"
 	"math/rand/v2"
 	"syscall/js"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -27,6 +28,7 @@ import (
 )
 
 var (
+	// Screen geometry. It is var (not const) because it adapts to screen device
 	screenWidth  int
 	screenHeight int
 	fieldWidth   int
@@ -34,7 +36,7 @@ var (
 	racketWidth  int
 	racketHeight int = 5 // +5 pixels of distance between racket and floor, fixed
 	racketSpeed  int = 8
-	winnerScore  int = 21
+	winnerScore  int = 3
 
 	// Used floats in some functions. Precalculated to alleviate cpu
 	fieldWidthF   float32
@@ -44,6 +46,7 @@ var (
 	racketWidthF  float32
 	racketHeightF float32
 
+	// Embeding all resources for portability
 	//go:embed res/*
 	embeddedFS embed.FS
 
@@ -55,6 +58,13 @@ var (
 	touchLeft  bool = false
 
 	fontFaceSource *text.GoTextFaceSource
+
+	// Time measures
+	startMatch time.Time
+	endMatch   time.Time
+	deltaMatch float64
+
+	startLiftFinger time.Time
 )
 
 const (
@@ -168,6 +178,10 @@ func (g *Game) Initialize() {
 		dOver, _ := mp3.DecodeWithoutResampling(fOver)
 		g.audioPlayerOver, _ = g.audioContext.NewPlayer(dOver)
 	}
+
+	// Start the match, take times
+	deltaMatch = 0
+	startMatch = time.Now()
 }
 
 func (g *Game) AddBall(rad int, R, G, B, A uint8, speedx, speedy int) {
@@ -203,9 +217,9 @@ func (g *Game) Update() error {
 
 	// Game over, g.State = 2
 	if g.State == 2 {
-		// Tap to restart the game
+		// Tap to restart the game, but wait 2s to lift your finger from the screen
 		touchIDs = inpututil.AppendJustReleasedTouchIDs(touchIDs[:0])
-		if len(touchIDs) > 0 {
+		if len(touchIDs) > 0 && time.Now().Sub(startLiftFinger).Seconds() > 2 {
 			g.Initialize()
 			g.AddBall(5, 0, 255, 0, 0, 5, 5)
 			g.State = 1
@@ -216,7 +230,7 @@ func (g *Game) Update() error {
 
 	// Logic for the match, g.State = 1
 
-	// Move the racket
+	// Move the racket. You can use key arrows, mouse cursor or finger touch
 	xCurs, yCurs := ebiten.CursorPosition()
 
 	touchIDs = inpututil.AppendJustPressedTouchIDs(touchIDs[:0])
@@ -289,8 +303,11 @@ func (g *Game) Update() error {
 	// Review scores and act accordingly:
 	// -If reached winnerScore, game is over
 	// -Add a new ball every 3 player points
-	if g.Score.Player == winnerScore || g.Score.CPU == winnerScore {
+	if g.Score.Player >= winnerScore || g.Score.CPU >= winnerScore {
 		go g.PlaySound(audioOver)
+		endMatch = time.Now()
+		deltaMatch = endMatch.Sub(startMatch).Seconds()
+		startLiftFinger = time.Now()
 		g.State = 2
 	} else if g.Score.Player == len(g.Balls)*3 {
 		// Add a total random ball
@@ -334,9 +351,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw game over
 	if g.State == 2 {
 		if g.Score.Player >= winnerScore {
-			ebitenutil.DebugPrint(screen, fmt.Sprintf("You won.\nTap the screen to play again."))
+			ebitenutil.DebugPrint(screen, fmt.Sprintf("You won.\nMatch duration %.2fs.\nTap the screen to play again.", deltaMatch))
 		} else {
-			ebitenutil.DebugPrint(screen, fmt.Sprintf("Machine won.\nTap the screen to play again."))
+			ebitenutil.DebugPrint(screen, fmt.Sprintf("Machine won.\nMatch duration %.2fs.\nTap the screen to play again.", deltaMatch))
 		}
 
 		opGO := &text.DrawOptions{}
